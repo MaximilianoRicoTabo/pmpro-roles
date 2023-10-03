@@ -127,7 +127,7 @@ class PMPRO_Roles {
 	 */
 	function edit_level( $saveid ) {
 		//by being here, we know we already have the $_REQUEST we need, so no need to check.
-		$capabilities = self::capabilities( self::$role_key . $saveid );
+		$capabilities = self::capabilities( self::$role_key . $saveid ) ?: array( 'read' => true );
 
 		if ( ! empty( $_REQUEST['pmpro_roles_level_present'] ) ) {
 
@@ -136,15 +136,18 @@ class PMPRO_Roles {
 			} else {
 				// If no role chosen, use the default.
 				$level_roles = array();
-				$level_roles[ self::$role_key . $saveid ] = sanitize_text_field( $_REQUEST['name'] );
+				$default_role = get_option( 'default_role' );
+				$level_roles[ $default_role ] = ucfirst( $default_role );
 			}
 
-			//created a new level
+			// We detect that the draft_role has been selected, so lets try to create it. (This can now happen whenever the role doesn't exist not just on new level creation)
+			if ( ! empty( $level_roles['pmpro_draft_role'] ) ) {
+				add_role( PMPRO_Roles::$role_key.$saveid, sanitize_text_field( $_REQUEST['name'] ), $capabilities );	
+			}
+			
+			//created a new level, lets try to create all the roles necessary.
 			if( $_REQUEST['edit'] < 0 ) {
 				foreach( $level_roles as $role_key => $role_name ){
-					if( $role_key === 'pmpro_draft_role' ){						
-						add_role( PMPRO_Roles::$role_key.$saveid, sanitize_text_field( $_REQUEST['name'] ), array( 'read' => true ) );	
-					}
 					if ( $role_key === 'pmpro_role_'. $saveid ) {
 						$capabilities = PMPRO_Roles::capabilities( $role_key );
 						add_role( $role_key, $role_name, $capabilities );	
@@ -399,7 +402,7 @@ class PMPRO_Roles {
 								<input type="hidden" name="pmpro_roles_level_present" value="1" />
 								<?php
 									//New level, choose if they want to create a role for this level
-									if ( $_REQUEST['edit'] < 0 ) { ?>
+									if ( !  $wp_roles->is_role( PMPRO_Roles::$role_key.$level_id ) || $_REQUEST['edit'] < 0 ) { ?>
 										<div class="pmpro_clickable" style="border-bottom-width: 4px;">
 											<input type='checkbox' name='pmpro_roles_level[pmpro_draft_role]' value='pmpro_draft_role' id='pmpro_draft_role' />
 											<label for='pmpro_draft_role'>
