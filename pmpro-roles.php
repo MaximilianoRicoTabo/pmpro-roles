@@ -109,13 +109,12 @@ class PMPRO_Roles {
 		
 		$roles = get_option( self::$plugin_prefix . $level_id );
 		
-		// Default to the role created for this level.
+		// Default to the site role, if no role is found.
 		if ( empty( $roles ) ) {			
-			$roles = array();			
-			$level = pmpro_getLevel( $level_id );
-			if ( ! empty( $level ) ) {
-				$roles[ self::$role_key . $level_id ] = $level->name;
-			}			
+			$roles = array();
+			$default_role = get_option( 'default_role' );					
+			$roles[ $default_role ] = ucfirst( $default_role );
+			
 		}
 		
 		return $roles;
