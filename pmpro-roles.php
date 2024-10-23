@@ -695,6 +695,9 @@ class PMPRO_Roles {
 			}
 		}
 
+		// Remove the pmpro_draft_role if it exists.
+		remove_role( 'pmpro_draft_role' );
+		
 		//deactivate the plugin
 		deactivate_plugins( plugin_basename( __FILE__ ) );
 
