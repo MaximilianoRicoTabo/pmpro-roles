@@ -111,13 +111,12 @@ class PMPRO_Roles {
 		
 		$roles = get_option( self::$plugin_prefix . $level_id );
 		
-		// Default to the role created for this level.
+		// Default to the site role, if no role is found.
 		if ( empty( $roles ) ) {			
-			$roles = array();			
-			$level = pmpro_getLevel( $level_id );
-			if ( ! empty( $level ) ) {
-				$roles[ self::$role_key . $level_id ] = $level->name;
-			}			
+			$roles = array();
+			$default_role = get_option( 'default_role' );					
+			$roles[ $default_role ] = ucfirst( $default_role );
+			
 		}
 		
 		return $roles;
@@ -129,7 +128,7 @@ class PMPRO_Roles {
 	 */
 	function edit_level( $saveid ) {
 		//by being here, we know we already have the $_REQUEST we need, so no need to check.
-		$capabilities = self::capabilities( self::$role_key . $saveid );
+		$capabilities = self::capabilities( self::$role_key . $saveid ) ?: array( 'read' => true );
 
 		if ( ! empty( $_REQUEST['pmpro_roles_level_present'] ) ) {
 
@@ -138,15 +137,17 @@ class PMPRO_Roles {
 			} else {
 				// If no role chosen, use the default.
 				$level_roles = array();
-				$level_roles[ self::$role_key . $saveid ] = sanitize_text_field( $_REQUEST['name'] );
+				$default_role = get_option( 'default_role' );
+				$level_roles[ $default_role ] = ucfirst( $default_role );
 			}
 
-			//created a new level
+			// We detect that the draft_role has been selected, so lets try to create it. (This can now happen whenever the role doesn't exist not just on new level creation)
+			if ( ! empty( $level_roles['pmpro_draft_role'] ) ) {
+				add_role( PMPRO_Roles::$role_key.$saveid, sanitize_text_field( $_REQUEST['name'] ), $capabilities );	
+			}
+
 			if ( isset( $_REQUEST['edit'] ) && $_REQUEST['edit'] < 0 ) {
 				foreach( $level_roles as $role_key => $role_name ){
-					if( $role_key === 'pmpro_draft_role' ){						
-						add_role( PMPRO_Roles::$role_key.$saveid, sanitize_text_field( $_REQUEST['name'] ), array( 'read' => true ) );	
-					}
 					if ( $role_key === 'pmpro_role_'. $saveid ) {
 						$capabilities = PMPRO_Roles::capabilities( $role_key );
 						add_role( $role_key, $role_name, $capabilities );	
@@ -364,7 +365,8 @@ class PMPRO_Roles {
 						'title' => array(),
 					),
 				);
-				echo sprintf( wp_kses( __( 'Choose one or more roles to be assigned for members of this level. <a href="%s" title="Paid Memberships Pro - Roles Add On" target="_blank">Visit the documentation page</a> for more information.', 'pmpro-roles' ), $allowed_pmpro_roles_description_html ), 'https://www.paidmembershipspro.com/add-ons/pmpro-roles//?utm_source=plugin&utm_medium=pmpro-membershiplevels&utm_campaign=add-ons&utm_content=pmpro-roles' );
+				echo sprintf( wp_kses( __( 'Choose one or more roles to be assigned for members of this level. <a href="%s" title="Paid Memberships Pro - Roles Add On" target="_blank">Visit the documentation page</a> for more information.', 'pmpro-roles' ), $allowed_pmpro_roles_description_html ), 'https://www.paidmembershipspro.com/add-ons/pmpro-roles//?utm_source=plugin&utm_medium=pmpro-membershiplevels&utm_campaign=add-ons&utm_content=pmpro-roles' );				
+				echo '<p>' . esc_html__( 'If you do not select a custom role for users of this membership level, the user will be assigned the "New User Default Role" as defined under Settings > General in the WordPress admin', 'pmpro-roles' ) . '</p>';
 			?>
 		</p>
 		<table class="form-table">
@@ -401,7 +403,7 @@ class PMPRO_Roles {
 								<input type="hidden" name="pmpro_roles_level_present" value="1" />
 								<?php
 									//New level, choose if they want to create a role for this level
-									if ( $_REQUEST['edit'] < 0 ) { ?>
+									if ( !  $wp_roles->is_role( PMPRO_Roles::$role_key.$level_id ) || $_REQUEST['edit'] < 0 ) { ?>
 										<div class="pmpro_clickable" style="border-bottom-width: 4px;">
 											<input type='checkbox' name='pmpro_roles_level[pmpro_draft_role]' value='pmpro_draft_role' id='pmpro_draft_role' />
 											<label for='pmpro_draft_role'>
